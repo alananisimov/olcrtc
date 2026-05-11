@@ -75,6 +75,14 @@ go version
 # go version go1.26.x linux/amd64
 ```
 
+### Шаг 2.5: swap (ОЗУ)
+
+Проекту нужно минимум 2-4ГБ ОЗУ для сборки. Если памяти мало, **включите SWAP**:
+
+```bash
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+```
+
 ---
 
 ## Шаг 3: Установить mage

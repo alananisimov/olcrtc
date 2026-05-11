@@ -43,6 +43,14 @@ pacman -S curl        # Arch / CacheOS / Manjaro
 dnf install curl      # Fedora
 ```
 
+### swap (ОЗУ)
+
+Если у вас меньше 4ГБ оперативной памяти, сборка может вылетать. **Обязательно включите SWAP**:
+
+```bash
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+```
+
 ---
 
 ## Шаг 1: Скачать репозиторий
