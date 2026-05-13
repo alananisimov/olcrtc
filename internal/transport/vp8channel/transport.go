@@ -31,6 +31,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"hash/fnv"
 	"sync"
 	"sync/atomic"
@@ -76,11 +77,13 @@ var vp8Keepalive = []byte{ //nolint:gochecknoglobals // package-level state inte
 //	[0..20]    = vp8Keepalive (valid VP8 keyframe, passes SFU inspection)
 //	[20..24]   = binding token derived from client-id (big-endian uint32)
 //	[24..28]   = sender's session epoch (big-endian uint32)
-//	[28..]     = raw KCP packet bytes
+//	[28..32]   = CRC32(token || epoch)
+//	[32..]     = raw KCP packet bytes
 const (
 	tokenOff    = 20
 	epochOff    = 24
-	epochHdrLen = 28
+	crcOff      = 28
+	epochHdrLen = 32
 )
 
 type streamTransport struct {
@@ -162,7 +165,7 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		writerDone:    make(chan struct{}),
 		frameInterval: time.Second / time.Duration(fps),
 		batchSize:     batchSize,
-		bindingToken:  bindingToken(cfg.DeviceID),
+		bindingToken:  bindingToken(cfg.RoomURL),
 		localEpoch:    randomEpoch(),
 	}
 
@@ -182,6 +185,22 @@ func (p *streamTransport) Connect(ctx context.Context) error {
 		return fmt.Errorf("connect stream: %w", err)
 	}
 
+	// Start KCP eagerly so Send/CanSend work immediately after Connect.
+	// Without this, the handshake round-trip that runs right after Connect
+	// would deadlock: muxconn.Write spins on CanSend (which checks kcp!=nil)
+	// and KCP was only started lazily on the first incoming peer frame.
+	p.kcpOnce.Do(func() {
+		rt, err := startKCP(p.outbound, p.onData, p.epochHeader())
+		if err != nil {
+			logger.Infof("vp8channel: startKCP failed: %v", err)
+			return
+		}
+		p.kcpMu.Lock()
+		p.kcp = rt
+		p.kcpMu.Unlock()
+		logger.Infof("vp8channel: KCP started localEpoch=0x%08x", p.localEpoch)
+	})
+
 	p.writerOnce.Do(func() {
 		p.writerUp.Store(true)
 		go p.writerLoop()
@@ -196,8 +215,26 @@ func (p *streamTransport) epochHeader() [epochHdrLen]byte {
 	var hdr [epochHdrLen]byte
 	copy(hdr[:], vp8Keepalive)
 	binary.BigEndian.PutUint32(hdr[tokenOff:epochOff], p.bindingToken)
-	binary.BigEndian.PutUint32(hdr[epochOff:], p.localEpoch)
+	binary.BigEndian.PutUint32(hdr[epochOff:crcOff], p.localEpoch)
+	binary.BigEndian.PutUint32(hdr[crcOff:epochHdrLen], epochCRC(p.bindingToken, p.localEpoch))
 	return hdr
+}
+
+func epochCRC(token, epoch uint32) uint32 {
+	var buf [8]byte
+	binary.BigEndian.PutUint32(buf[0:4], token)
+	binary.BigEndian.PutUint32(buf[4:8], epoch)
+	return crc32.ChecksumIEEE(buf[:])
+}
+
+func parseEpochHeader(frame []byte) (uint32, uint32, bool) {
+	if len(frame) < epochHdrLen {
+		return 0, 0, false
+	}
+	token := binary.BigEndian.Uint32(frame[tokenOff:epochOff])
+	epoch := binary.BigEndian.Uint32(frame[epochOff:crcOff])
+	gotCRC := binary.BigEndian.Uint32(frame[crcOff:epochHdrLen])
+	return token, epoch, gotCRC == epochCRC(token, epoch)
 }
 
 func bindingToken(clientID string) uint32 {
@@ -488,30 +525,22 @@ func (p *streamTransport) readVP8Track(track *webrtc.TrackRemote) {
 func (p *streamTransport) handleFirstPeer(peerEpoch uint32) {
 	p.peerEpoch.Store(peerEpoch)
 	logger.Infof("vp8channel: peer first seen epoch=0x%08x", peerEpoch)
-	p.kcpOnce.Do(func() {
-		rt, err := startKCP(p.outbound, p.onData, p.epochHeader())
-		if err != nil {
-			logger.Infof("vp8channel: startKCP failed: %v", err)
-			return
-		}
-		p.kcpMu.Lock()
-		p.kcp = rt
-		p.kcpMu.Unlock()
-		logger.Infof("vp8channel: KCP started localEpoch=0x%08x", p.localEpoch)
-	})
 }
 
 // handleIncomingFrame parses the epoch header and either delivers the KCP
 // payload to the local session or triggers a reset when the peer's epoch
 // changes (peer process restart).
 func (p *streamTransport) handleIncomingFrame(frame []byte) {
-	frameToken := binary.BigEndian.Uint32(frame[tokenOff:epochOff])
+	frameToken, peerEpoch, ok := parseEpochHeader(frame)
+	if !ok {
+		logger.Debugf("vp8channel: frame header checksum mismatch")
+		return
+	}
 	if frameToken != p.bindingToken {
 		logger.Debugf("vp8channel: frame token mismatch got=0x%08x want=0x%08x (foreign client or noise)",
 			frameToken, p.bindingToken)
 		return
 	}
-	peerEpoch := binary.BigEndian.Uint32(frame[epochOff:epochHdrLen])
 	kcpPayload := frame[epochHdrLen:]
 	// Some carriers/SFUs reflect our own published VP8 track back to us as a
 	// remote track. Those frames carry our local epoch, not the peer's. If we

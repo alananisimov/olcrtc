@@ -263,7 +263,13 @@ func (s *Server) bringUpLink(
 		logger.Infof("Server link reported conference end: %s", reason)
 		cancel()
 	})
-	ln.SetReconnectCallback(func() { s.handleReconnect() })
+	ln.SetShouldReconnect(func() bool { return ctx.Err() == nil })
+	ln.SetReconnectCallback(func() {
+		if ctx.Err() != nil {
+			return
+		}
+		s.handleReconnect()
+	})
 
 	logger.Infof("Connecting link via %s/%s/%s...", cfg.Link, cfg.Transport, cfg.Carrier)
 	if err := ln.Connect(ctx); err != nil {
@@ -345,18 +351,21 @@ func (s *Server) reinstallSession(dead *smux.Session) {
 
 func (s *Server) closeSession() {
 	s.sessMu.Lock()
-	if s.session != nil {
-		_ = s.session.Close()
-		s.session = nil
-	}
-	if s.conn != nil {
-		_ = s.conn.Close()
-		s.conn = nil
-	}
+	sess := s.session
+	conn := s.conn
+	s.session = nil
+	s.conn = nil
 	oldSID := s.sessionID
 	s.sessionID = ""
 	s.deviceID = ""
 	s.sessMu.Unlock()
+
+	if conn != nil {
+		_ = conn.Close()
+	}
+	if sess != nil {
+		_ = sess.Close()
+	}
 	if oldSID != "" {
 		s.onClose(oldSID, "closed")
 	}

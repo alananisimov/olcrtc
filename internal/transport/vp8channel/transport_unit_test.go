@@ -109,8 +109,8 @@ func TestNewConnectSendCallbacksFeaturesAndClose(t *testing.T) {
 	if err := tr.Connect(context.Background()); err != nil {
 		t.Fatalf("Connect() error = %v", err)
 	}
-	if tr.kcp != nil || !tr.writerUp.Load() {
-		t.Fatal("Connect() should not initialize kcp before peer arrives")
+	if tr.kcp == nil || !tr.writerUp.Load() {
+		t.Fatal("Connect() should eagerly initialize kcp and writer")
 	}
 	tr.SetReconnectCallback(func() {})
 	tr.SetShouldReconnect(func() bool { return true })
@@ -124,7 +124,8 @@ func TestNewConnectSendCallbacksFeaturesAndClose(t *testing.T) {
 	firstFrame := make([]byte, epochHdrLen+4)
 	copy(firstFrame, vp8Keepalive)
 	binary.BigEndian.PutUint32(firstFrame[tokenOff:epochOff], tr.bindingToken)
-	binary.BigEndian.PutUint32(firstFrame[epochOff:epochHdrLen], peerEpoch)
+	binary.BigEndian.PutUint32(firstFrame[epochOff:crcOff], peerEpoch)
+	binary.BigEndian.PutUint32(firstFrame[crcOff:epochHdrLen], epochCRC(tr.bindingToken, peerEpoch))
 	copy(firstFrame[epochHdrLen:], []byte("data"))
 	tr.handleIncomingFrame(firstFrame)
 	if tr.kcp == nil {
@@ -186,7 +187,8 @@ func TestEpochHeaderTokenAndOutboundCapacity(t *testing.T) {
 	hdr := tr.epochHeader()
 	if !bytes.Equal(hdr[:tokenOff], vp8Keepalive) ||
 		binary.BigEndian.Uint32(hdr[tokenOff:epochOff]) != tr.bindingToken ||
-		binary.BigEndian.Uint32(hdr[epochOff:]) != tr.localEpoch {
+		binary.BigEndian.Uint32(hdr[epochOff:crcOff]) != tr.localEpoch ||
+		binary.BigEndian.Uint32(hdr[crcOff:epochHdrLen]) != epochCRC(tr.bindingToken, tr.localEpoch) {
 		t.Fatalf("epochHeader() = %x", hdr)
 	}
 	if bindingToken("") == 0 || randomEpoch() == 0 {
@@ -286,7 +288,8 @@ func TestHandleIncomingFrameEpochFilteringAndReconnect(t *testing.T) {
 		frame := make([]byte, epochHdrLen+len(payload))
 		copy(frame, vp8Keepalive)
 		binary.BigEndian.PutUint32(frame[tokenOff:epochOff], token)
-		binary.BigEndian.PutUint32(frame[epochOff:epochHdrLen], epoch)
+		binary.BigEndian.PutUint32(frame[epochOff:crcOff], epoch)
+		binary.BigEndian.PutUint32(frame[crcOff:epochHdrLen], epochCRC(token, epoch))
 		copy(frame[epochHdrLen:], payload)
 		return frame
 	}

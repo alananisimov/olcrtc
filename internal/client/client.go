@@ -49,18 +49,18 @@ var (
 
 // Client handles local SOCKS5 connections and tunnels them to the server.
 type Client struct {
-	ln           link.Link
-	cipher       *crypto.Cipher
-	conn         *muxconn.Conn
-	session      *smux.Session
-	controlStrm  *smux.Stream
-	sessMu       sync.RWMutex
-	deviceID     string
-	sessionID    string
-	claims       map[string]any
-	dnsServer    string
-	socksUser    string
-	socksPass    string
+	ln          link.Link
+	cipher      *crypto.Cipher
+	conn        *muxconn.Conn
+	session     *smux.Session
+	controlStrm *smux.Stream
+	sessMu      sync.RWMutex
+	deviceID    string
+	sessionID   string
+	claims      map[string]any
+	dnsServer   string
+	socksUser   string
+	socksPass   string
 }
 
 // Config holds runtime configuration for [Run] and [RunWithReady].
@@ -203,7 +203,13 @@ func (c *Client) bringUpLink(
 		logger.Infof("Client link reported conference end: %s", reason)
 		cancel()
 	})
-	ln.SetReconnectCallback(func() { c.handleReconnect() })
+	ln.SetShouldReconnect(func() bool { return ctx.Err() == nil })
+	ln.SetReconnectCallback(func() {
+		if ctx.Err() != nil {
+			return
+		}
+		c.handleReconnect()
+	})
 
 	if err := ln.Connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect link: %w", err)
@@ -389,18 +395,25 @@ func (c *Client) tryReopenSession(attempt int) bool {
 
 func (c *Client) shutdown() {
 	c.sessMu.Lock()
-	if c.controlStrm != nil {
-		_ = c.controlStrm.Close()
-	}
-	if c.session != nil {
-		_ = c.session.Close()
-	}
-	if c.conn != nil {
-		_ = c.conn.Close()
-	}
+	control := c.controlStrm
+	sess := c.session
+	conn := c.conn
+	c.controlStrm = nil
+	c.session = nil
+	c.conn = nil
 	c.sessMu.Unlock()
+
+	if conn != nil {
+		_ = conn.Close()
+	}
 	if c.ln != nil {
 		_ = c.ln.Close()
+	}
+	if control != nil {
+		_ = control.Close()
+	}
+	if sess != nil {
+		_ = sess.Close()
 	}
 }
 
