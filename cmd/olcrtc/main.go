@@ -18,6 +18,7 @@ import (
 	protoLogger "github.com/livekit/protocol/logger"
 	lksdk "github.com/livekit/server-sdk-go/v2"
 	"github.com/openlibrecommunity/olcrtc/internal/app/session"
+	configpkg "github.com/openlibrecommunity/olcrtc/internal/config"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
 	"github.com/openlibrecommunity/olcrtc/internal/names"
 	"github.com/openlibrecommunity/olcrtc/internal/transport/videochannel"
@@ -35,6 +36,7 @@ var runSession = session.Run
 var runGen = execGen
 
 type config struct {
+	configPath      string
 	mode            string
 	link            string
 	transport       string
@@ -95,7 +97,42 @@ func runWithArgs(args []string) error {
 	return runWithConfig(cfg)
 }
 
+// applyConfigFile loads cfg.configPath (if set) and merges its values into scfg.
+// CLI flags (already populated) take precedence over YAML.
+func applyConfigFile(cfg config, scfg session.Config) (session.Config, error) {
+	if cfg.configPath == "" {
+		return scfg, nil
+	}
+	f, err := configpkg.Load(cfg.configPath)
+	if err != nil {
+		return scfg, fmt.Errorf("load config: %w", err)
+	}
+	return configpkg.Apply(scfg, f), nil
+}
+
+// mergeFileMeta fills cmd-level fields (data dir, debug, ffmpeg) that aren't
+// part of session.Config but still need to come from the YAML file.
+func mergeFileMeta(cfg *config, f configpkg.File) {
+	if cfg.dataDir == "" {
+		cfg.dataDir = f.Data
+	}
+	if !cfg.debug {
+		cfg.debug = f.Debug
+	}
+	if (cfg.ffmpegPath == "" || cfg.ffmpegPath == "ffmpeg") && f.FFmpeg != "" {
+		cfg.ffmpegPath = f.FFmpeg
+	}
+}
+
 func runWithConfig(cfg config) error {
+	if cfg.configPath != "" {
+		f, err := configpkg.Load(cfg.configPath)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		mergeFileMeta(&cfg, f)
+	}
+
 	configureLogging(cfg.debug)
 
 	if cfg.ffmpegPath != "ffmpeg" && cfg.ffmpegPath != "" {
@@ -110,7 +147,11 @@ func runWithConfig(cfg config) error {
 }
 
 func runSessionMode(cfg config) error {
-	scfg, err := session.ApplyAuthDefaults(toSessionConfig(cfg))
+	scfg, err := applyConfigFile(cfg, toSessionConfig(cfg))
+	if err != nil {
+		return err
+	}
+	scfg, err = session.ApplyAuthDefaults(scfg)
 	if err != nil {
 		return fmt.Errorf("validate config: %w", err)
 	}
@@ -118,16 +159,17 @@ func runSessionMode(cfg config) error {
 		return fmt.Errorf("validate config: %w", err)
 	}
 
-	if cfg.dataDir == "" {
+	dataDir := cfg.dataDir
+	if dataDir == "" {
 		return ErrDataDirRequired
 	}
 
-	dataDir, err := resolveDataDir(cfg.dataDir)
+	resolvedDataDir, err := resolveDataDir(dataDir)
 	if err != nil {
 		return err
 	}
 
-	if err := loadNames(dataDir); err != nil {
+	if err := loadNames(resolvedDataDir); err != nil {
 		return err
 	}
 
@@ -153,7 +195,11 @@ func runSessionMode(cfg config) error {
 }
 
 func execGen(cfg config) error {
-	scfg, err := session.ApplyAuthDefaults(toSessionConfig(cfg))
+	scfg, err := applyConfigFile(cfg, toSessionConfig(cfg))
+	if err != nil {
+		return err
+	}
+	scfg, err = session.ApplyAuthDefaults(scfg)
 	if err != nil {
 		return fmt.Errorf("validate gen config: %w", err)
 	}
@@ -188,6 +234,7 @@ func parseFlagsFrom(args []string, errorHandling flag.ErrorHandling) (config, er
 		fs.SetOutput(io.Discard)
 	}
 
+	fs.StringVar(&cfg.configPath, "config", "", "Path to YAML config file (CLI flags override file values)")
 	fs.StringVar(&cfg.mode, "mode", "", "Mode: srv or cnc")
 	fs.StringVar(&cfg.link, "link", "", "Link: direct (p2p connection type)")
 	fs.StringVar(&cfg.transport, "transport", "", "Transport: datachannel, videochannel, seichannel")
