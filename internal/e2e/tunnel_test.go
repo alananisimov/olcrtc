@@ -345,7 +345,7 @@ func realE2ECaseExpectation(carrierName, transportName string) realE2EExpectatio
 			return realE2EExpectFail
 		}
 	case "wbstream":
-		return realE2EBestEffort
+		return realE2EExpectPass
 	default:
 		return realE2EExpectPass
 	}
