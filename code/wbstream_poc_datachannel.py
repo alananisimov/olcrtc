@@ -17,7 +17,8 @@ logging.getLogger("livekit").setLevel(logging.WARNING)
 API_BASE = "https://stream.wb.ru"
 WS_URL = "wss://rtc-el-01.wb.ru"
 HARDCODED_ROOM_ID = "019e23c2-a580-7550-b08a-7ac5342ca21f"
-TEST_MESSAGES = ["Hello WB Stream!", "Hello world", "X" * 100, "Final test"]
+TEST_ATTEMPTS = 60
+TEST_MESSAGES = [f"WB Stream DataChannel attempt {idx:02d}" for idx in range(1, TEST_ATTEMPTS + 1)]
 
 def _get_room_token(room_id: str, display_name: str) -> tuple[str, str]:
     """Retrieves the room token via the guest API."""

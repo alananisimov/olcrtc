@@ -20,7 +20,8 @@ API_BASE = "https://stream.wb.ru"
 WS_URL = "wss://wbstream01-el.wb.ru:7880"
 HARDCODED_ROOM_ID = "019e23c2-a580-7550-b08a-7ac5342ca21f"
 FPS = 10
-TEST_MESSAGES = ["Hello WB Stream via Video!", "Packed JSON payload test.", "X" * 200, "Final VideoChannel test"]
+TEST_ATTEMPTS = 60
+TEST_MESSAGES = [f"WB Stream VideoChannel attempt {idx:02d}" for idx in range(1, TEST_ATTEMPTS + 1)]
 
 
 def _encode(text: str) -> np.ndarray:
