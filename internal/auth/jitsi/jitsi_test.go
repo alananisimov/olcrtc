@@ -8,6 +8,11 @@ import (
 	"github.com/openlibrecommunity/olcrtc/internal/auth"
 )
 
+const (
+	testRoom = "myroom"
+	testHost = "meet.example"
+)
+
 func TestParseRoomURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -16,15 +21,15 @@ func TestParseRoomURL(t *testing.T) {
 		room    string
 		wantErr bool
 	}{
-		{name: "https url", raw: "https://meet.cryptopro.ru/myroom", host: "meet.cryptopro.ru", room: "myroom"},
-		{name: "http url", raw: "http://meet.example/myroom", host: "meet.example", room: "myroom"},
-		{name: "scheme-less", raw: "meet.example.com/myroom", host: "meet.example.com", room: "myroom"},
-		{name: "trailing slash", raw: "https://meet.example/myroom/", host: "meet.example", room: "myroom"},
-		{name: "double slash leader", raw: "//meet.example/myroom", host: "meet.example", room: "myroom"},
-		{name: "uppercase room", raw: "https://meet.example/MyRoom", host: "meet.example", room: "MyRoom"},
+		{name: "https url", raw: "https://meet.cryptopro.ru/" + testRoom, host: "meet.cryptopro.ru", room: testRoom},
+		{name: "http url", raw: "http://" + testHost + "/" + testRoom, host: testHost, room: testRoom},
+		{name: "scheme-less", raw: "meet.example.com/" + testRoom, host: "meet.example.com", room: testRoom},
+		{name: "trailing slash", raw: "https://" + testHost + "/" + testRoom + "/", host: testHost, room: testRoom},
+		{name: "double slash leader", raw: "//" + testHost + "/" + testRoom, host: testHost, room: testRoom},
+		{name: "uppercase room", raw: "https://" + testHost + "/MyRoom", host: testHost, room: "MyRoom"},
 		{name: "empty", raw: "", wantErr: true},
 		{name: "host only", raw: "meet.example.com", wantErr: true},
-		{name: "no room", raw: "https://meet.example/", wantErr: true},
+		{name: "no room", raw: "https://" + testHost + "/", wantErr: true},
 		{name: "scheme only", raw: "https://", wantErr: true},
 	}
 	for _, tc := range tests {

@@ -67,7 +67,7 @@ func (Provider) Issue(_ context.Context, cfg auth.Config) (auth.Credentials, err
 // Accepts URLs with or without scheme. The host part is the segment before
 // the first "/" after stripping the scheme; the room is everything that
 // follows, with leading/trailing slashes trimmed.
-func parseRoomURL(raw string) (host string, room string, err error) {
+func parseRoomURL(raw string) (string, string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", "", auth.ErrRoomIDRequired
@@ -81,8 +81,8 @@ func parseRoomURL(raw string) (host string, room string, err error) {
 	if slash <= 0 {
 		return "", "", fmt.Errorf("%w: %q", ErrInvalidRoomURL, raw)
 	}
-	host = strings.TrimSpace(raw[:slash])
-	room = strings.Trim(raw[slash+1:], "/")
+	host := strings.TrimSpace(raw[:slash])
+	room := strings.Trim(raw[slash+1:], "/")
 	if host == "" || room == "" {
 		return "", "", fmt.Errorf("%w: %q", ErrInvalidRoomURL, raw)
 	}

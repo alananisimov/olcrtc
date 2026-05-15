@@ -349,6 +349,7 @@ func builtInTransportNames() []string {
 	return []string{transportData, transportVideo, transportSEI, transportVP8}
 }
 
+//nolint:cyclop // matrix of carrier×transport expectations is naturally branchy
 func realE2ECaseExpectation(carrierName, transportName string) realE2EExpectation {
 	switch carrierName {
 	case "telemost":

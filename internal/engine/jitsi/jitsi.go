@@ -138,30 +138,35 @@ func sanitiseNick(raw string) string {
 	b.Grow(len(raw))
 	prevDash := false
 	for _, r := range raw {
-		switch {
-		case r >= 'a' && r <= 'z',
-			r >= 'A' && r <= 'Z',
-			r >= '0' && r <= '9':
-			b.WriteRune(r)
-			prevDash = false
-		case r == '-' || r == '_':
-			b.WriteRune(r)
-			prevDash = false
-		default:
-			if !prevDash && b.Len() > 0 {
-				b.WriteRune('-')
-				prevDash = true
-			}
-		}
 		if b.Len() >= maxNickLen {
 			break
 		}
+		if isNickRune(r) {
+			b.WriteRune(r)
+			prevDash = false
+			continue
+		}
+		if !prevDash && b.Len() > 0 {
+			b.WriteRune('-')
+			prevDash = true
+		}
 	}
-	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		return ""
+	return strings.Trim(b.String(), "-")
+}
+
+// isNickRune reports whether r is allowed verbatim in a sanitised nick.
+func isNickRune(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z':
+		return true
+	case r >= 'A' && r <= 'Z':
+		return true
+	case r >= '0' && r <= '9':
+		return true
+	case r == '-' || r == '_':
+		return true
 	}
-	return out
+	return false
 }
 
 // Capabilities reports what this engine can do.
@@ -351,19 +356,29 @@ func (s *Session) recvLoop() {
 		case <-s.done:
 			return
 		case msg, ok := <-msgs:
-			if !ok {
-				if !s.closed.Load() {
-					s.signalEnded("jitsi bridge closed")
-				}
+			if !s.deliverBridgeMessage(msg, ok) {
 				return
 			}
-			payload := decodeRaw(msg)
-			if payload == nil {
-				continue
-			}
-			s.onData(payload)
 		}
 	}
+}
+
+// deliverBridgeMessage decodes a single incoming bridge message and forwards
+// any raw payload to onData. Returns false to signal that the recv loop
+// should exit (channel closed or session ended).
+func (s *Session) deliverBridgeMessage(msg j.BridgeMessage, ok bool) bool {
+	if !ok {
+		if !s.closed.Load() {
+			s.signalEnded("jitsi bridge closed")
+		}
+		return false
+	}
+	payload := decodeRaw(msg)
+	if payload == nil {
+		return true
+	}
+	s.onData(payload)
+	return true
 }
 
 // decodeRaw extracts the bytes from an EndpointMessage produced by the j
@@ -480,7 +495,7 @@ func (s *Session) GetBufferedAmount() uint64 {
 	if depth <= 0 {
 		return 0
 	}
-	return uint64(depth) * uint64(bridgeMaxMessageSize) //nolint:gosec // depth is small and bounded by queue cap
+	return uint64(depth) * uint64(bridgeMaxMessageSize)
 }
 
 // AddVideoTrack publishes a video track to the Jitsi conference.
