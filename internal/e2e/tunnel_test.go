@@ -97,7 +97,6 @@ type realE2EExpectation int
 const (
 	realE2EExpectFail realE2EExpectation = iota
 	realE2EExpectPass
-	realE2EBestEffort
 )
 
 type memorySession struct {
@@ -357,7 +356,7 @@ func realE2ECaseExpectation(carrierName, transportName string) realE2EExpectatio
 		case transportVP8:
 			return realE2EExpectPass
 		case transportVideo:
-			return realE2EBestEffort
+			return realE2EExpectPass
 		default:
 			return realE2EExpectFail
 		}
@@ -378,14 +377,7 @@ func realE2ECaseExpectation(carrierName, transportName string) realE2EExpectatio
 		// PeerConnection negotiated via Jingle session-accept; results
 		// are bridge/instance dependent (some operators throttle or
 		// strip non-camera video), hence best-effort.
-		switch transportName {
-		case transportData:
-			return realE2EExpectPass
-		case transportVP8, transportVideo, transportSEI:
-			return realE2EBestEffort
-		default:
-			return realE2EBestEffort
-		}
+		return realE2EExpectPass
 	default:
 		return realE2EExpectPass
 	}
@@ -395,9 +387,7 @@ func realE2EExpectationLabel(expectation realE2EExpectation) string {
 	switch expectation {
 	case realE2EExpectPass:
 		return "SUCCESS"
-	case realE2EBestEffort:
-		return "BEST EFFORT"
-	case realE2EExpectFail:
+case realE2EExpectFail:
 		return "EXPECTED FAIL"
 	default:
 		return "UNKNOWN"
@@ -460,22 +450,22 @@ func TestRealE2ECaseExpectation(t *testing.T) {
 			want:      realE2EExpectPass,
 		},
 		{
-			name:      "jitsi vp8channel is best effort",
+			name:      "jitsi vp8channel is expected to pass",
 			carrier:   "jitsi",
 			transport: transportVP8,
-			want:      realE2EBestEffort,
+			want:      realE2EExpectPass,
 		},
 		{
-			name:      "jitsi videochannel is best effort",
+			name:      "jitsi videochannel is expected to pass",
 			carrier:   "jitsi",
 			transport: transportVideo,
-			want:      realE2EBestEffort,
+			want:      realE2EExpectPass,
 		},
 		{
-			name:      "jitsi seichannel is best effort",
+			name:      "jitsi seichannel is expected to pass",
 			carrier:   "jitsi",
 			transport: transportSEI,
-			want:      realE2EBestEffort,
+			want:      realE2EExpectPass,
 		},
 	}
 
@@ -1039,10 +1029,6 @@ func TestRealProviderTransportMatrix(t *testing.T) {
 						t.Fatalf("EXPECTED SUCCESS %s/%s failed: %v", carrierName, transportName, err)
 					case err != nil && expectation == realE2EExpectFail:
 						t.Logf("%s %s/%s: %v", label, carrierName, transportName, err)
-					case err == nil && expectation == realE2EBestEffort:
-						t.Logf("%s %s/%s succeeded", label, carrierName, transportName)
-					case err != nil && expectation == realE2EBestEffort:
-						t.Logf("%s %s/%s failed: %v", label, carrierName, transportName, err)
 					}
 				})
 			}
