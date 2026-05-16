@@ -75,37 +75,22 @@ type HealthFunc func(control.Status)
 
 // Config holds runtime configuration for [Run] and [RunWithReady].
 type Config struct {
-	Link            string
-	Transport       string
-	Carrier         string
-	RoomURL         string
-	ChannelID       string
-	KeyHex          string
-	LocalAddr       string
-	DNSServer       string
-	SOCKSUser       string
-	SOCKSPass       string
-	VideoWidth      int
-	VideoHeight     int
-	VideoFPS        int
-	VideoBitrate    string
-	VideoHW         string
-	VideoQRSize     int
-	VideoQRRecovery string
-	VideoCodec      string
-	VideoTileModule int
-	VideoTileRS     int
-	VP8FPS          int
-	VP8BatchSize    int
-	SEIFPS          int
-	SEIBatchSize    int
-	SEIFragmentSize int
-	SEIAckTimeoutMS int
-	Engine          string
-	URL             string
-	Token           string
-	Liveness        control.Config
-	Traffic         transport.TrafficConfig
+	Link             string
+	Transport        string
+	Carrier          string
+	RoomURL          string
+	ChannelID        string
+	KeyHex           string
+	LocalAddr        string
+	DNSServer        string
+	SOCKSUser        string
+	SOCKSPass        string
+	TransportOptions transport.Options
+	Engine           string
+	URL              string
+	Token            string
+	Liveness         control.Config
+	Traffic          transport.TrafficConfig
 
 	// DeviceID overrides the persistent client-side device identifier. Leave
 	// empty to derive one from DeviceIDPath (or generate a random one if both
@@ -193,34 +178,19 @@ func (c *Client) bringUpLink(
 	cancel context.CancelFunc,
 ) error {
 	ln, err := link.New(ctx, cfg.Link, link.Config{
-		Transport:       cfg.Transport,
-		Carrier:         cfg.Carrier,
-		RoomURL:         cfg.RoomURL,
-		Engine:          cfg.Engine,
-		URL:             cfg.URL,
-		Token:           cfg.Token,
-		ChannelID:       cfg.ChannelID,
-		DeviceID:        c.deviceID,
-		Name:            names.Generate(),
-		OnData:          c.onData,
-		DNSServer:       cfg.DNSServer,
-		VideoWidth:      cfg.VideoWidth,
-		VideoHeight:     cfg.VideoHeight,
-		VideoFPS:        cfg.VideoFPS,
-		VideoBitrate:    cfg.VideoBitrate,
-		VideoHW:         cfg.VideoHW,
-		VideoQRSize:     cfg.VideoQRSize,
-		VideoQRRecovery: cfg.VideoQRRecovery,
-		VideoCodec:      cfg.VideoCodec,
-		VideoTileModule: cfg.VideoTileModule,
-		VideoTileRS:     cfg.VideoTileRS,
-		VP8FPS:          cfg.VP8FPS,
-		VP8BatchSize:    cfg.VP8BatchSize,
-		SEIFPS:          cfg.SEIFPS,
-		SEIBatchSize:    cfg.SEIBatchSize,
-		SEIFragmentSize: cfg.SEIFragmentSize,
-		SEIAckTimeoutMS: cfg.SEIAckTimeoutMS,
-		Traffic:         cfg.Traffic,
+		Transport:        cfg.Transport,
+		Carrier:          cfg.Carrier,
+		RoomURL:          cfg.RoomURL,
+		Engine:           cfg.Engine,
+		URL:              cfg.URL,
+		Token:            cfg.Token,
+		ChannelID:        cfg.ChannelID,
+		DeviceID:         c.deviceID,
+		Name:             names.Generate(),
+		OnData:           c.onData,
+		DNSServer:        cfg.DNSServer,
+		TransportOptions: cfg.TransportOptions,
+		Traffic:          cfg.Traffic,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create link: %w", err)

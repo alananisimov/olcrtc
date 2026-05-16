@@ -39,33 +39,21 @@ type Config struct {
 	Carrier   string
 	RoomURL   string
 	// Engine, URL, Token are forwarded for the "none" auth carrier.
-	Engine          string
-	URL             string
-	Token           string
-	ChannelID       string
-	DeviceID        string
-	Name            string
-	OnData          func([]byte)
-	DNSServer       string
-	ProxyAddr       string
-	ProxyPort       int
-	VideoWidth      int
-	VideoHeight     int
-	VideoFPS        int
-	VideoBitrate    string
-	VideoHW         string
-	VideoQRSize     int
-	VideoQRRecovery string
-	VideoCodec      string
-	VideoTileModule int
-	VideoTileRS     int
-	VP8FPS          int
-	VP8BatchSize    int
-	SEIFPS          int
-	SEIBatchSize    int
-	SEIFragmentSize int
-	SEIAckTimeoutMS int
-	Traffic         transport.TrafficConfig
+	Engine    string
+	URL       string
+	Token     string
+	ChannelID string
+	DeviceID  string
+	Name      string
+	OnData    func([]byte)
+	DNSServer string
+	ProxyAddr string
+	ProxyPort int
+
+	// TransportOptions is forwarded verbatim to transport.Config.Options.
+	TransportOptions transport.Options
+
+	Traffic transport.TrafficConfig
 }
 
 // Factory creates a link instance.

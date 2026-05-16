@@ -7,6 +7,7 @@ import (
 
 	"github.com/openlibrecommunity/olcrtc/internal/link"
 	"github.com/openlibrecommunity/olcrtc/internal/transport"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/videochannel"
 )
 
 var (
@@ -58,35 +59,43 @@ func TestNewForwardsConfigAndMethods(t *testing.T) {
 		return tr, nil
 	})
 
+	wantOpts := videochannel.Options{
+		Width:      640,
+		Height:     480,
+		FPS:        30,
+		Bitrate:    "1M",
+		HW:         "none",
+		QRSize:     4,
+		QRRecovery: "low",
+		Codec:      "qrcode",
+		TileModule: 3,
+		TileRS:     20,
+	}
+
 	ln, err := New(context.Background(), link.Config{
-		Transport:       name,
-		Carrier:         "carrier",
-		RoomURL:         "room",
-		DeviceID:        "client",
-		Name:            "peer",
-		DNSServer:       "1.1.1.1:53",
-		ProxyAddr:       "127.0.0.1",
-		ProxyPort:       1080,
-		VideoWidth:      640,
-		VideoHeight:     480,
-		VideoFPS:        30,
-		VideoBitrate:    "1M",
-		VideoHW:         "none",
-		VideoQRSize:     4,
-		VideoQRRecovery: "low",
-		VideoCodec:      "qrcode",
-		VideoTileModule: 3,
-		VideoTileRS:     20,
-		VP8FPS:          25,
-		VP8BatchSize:    8,
-		Traffic:         transport.TrafficConfig{MaxPayloadSize: 4096},
+		Transport:        name,
+		Carrier:          "carrier",
+		RoomURL:          "room",
+		DeviceID:         "client",
+		Name:             "peer",
+		DNSServer:        "1.1.1.1:53",
+		ProxyAddr:        "127.0.0.1",
+		ProxyPort:        1080,
+		TransportOptions: wantOpts,
+		Traffic:          transport.TrafficConfig{MaxPayloadSize: 4096},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
 
-	if seen.DeviceID != "client" || seen.ProxyPort != 1080 || seen.VideoTileRS != 20 || seen.VP8BatchSize != 8 ||
-		seen.Traffic.MaxPayloadSize != 4096 {
+	gotOpts, ok := seen.Options.(videochannel.Options)
+	if !ok {
+		t.Fatalf("forwarded Options type = %T, want videochannel.Options", seen.Options)
+	}
+	if gotOpts != wantOpts {
+		t.Fatalf("forwarded Options = %+v, want %+v", gotOpts, wantOpts)
+	}
+	if seen.DeviceID != "client" || seen.ProxyPort != 1080 || seen.Traffic.MaxPayloadSize != 4096 {
 		t.Fatalf("forwarded config = %+v", seen)
 	}
 

@@ -103,6 +103,11 @@ type streamTransport struct {
 
 // New creates a seichannel transport backed by a carrier.
 func New(ctx context.Context, cfg transport.Config) (transport.Transport, error) {
+	opts, err := optionsFrom(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	session, err := carrier.New(ctx, cfg.Carrier, carrier.Config{
 		RoomURL:   cfg.RoomURL,
 		Name:      cfg.Name,
@@ -144,21 +149,21 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		return nil, fmt.Errorf("create local video track: %w", err)
 	}
 
-	fps := cfg.SEIFPS
+	fps := opts.FPS
 	if fps <= 0 {
 		fps = defaultFPS
 	}
-	batchSize := cfg.SEIBatchSize
+	batchSize := opts.BatchSize
 	if batchSize <= 0 {
 		batchSize = defaultBatchSize
 	}
-	fragmentSize := cfg.SEIFragmentSize
+	fragmentSize := opts.FragmentSize
 	if fragmentSize <= 0 {
 		fragmentSize = defaultFragmentSize
 	}
 	ackTimeout := defaultAckTimeout
-	if cfg.SEIAckTimeoutMS > 0 {
-		ackTimeout = time.Duration(cfg.SEIAckTimeoutMS) * time.Millisecond
+	if opts.AckTimeoutMS > 0 {
+		ackTimeout = time.Duration(opts.AckTimeoutMS) * time.Millisecond
 	}
 
 	tr := &streamTransport{
@@ -178,8 +183,7 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		batchSize:     batchSize,
 	}
 
-	err = stream.AddTrack(track)
-	if err != nil {
+	if err := stream.AddTrack(track); err != nil {
 		return nil, fmt.Errorf("attach local video track: %w", err)
 	}
 	stream.SetTrackHandler(tr.handleRemoteTrack)

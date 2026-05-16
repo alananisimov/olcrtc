@@ -69,14 +69,16 @@ func TestNewCallbacksFeaturesAndClose(t *testing.T) {
 	})
 
 	trIface, err := New(context.Background(), transport.Config{
-		Carrier:         name,
-		VideoWidth:      320,
-		VideoHeight:     240,
-		VideoFPS:        30,
-		VideoBitrate:    "1M",
-		VideoCodec:      "qrcode",
-		VideoTileModule: -1,
-		VideoTileRS:     -1,
+		Carrier: name,
+		Options: Options{
+			Width:      320,
+			Height:     240,
+			FPS:        30,
+			Bitrate:    "1M",
+			Codec:      "qrcode",
+			TileModule: -1,
+			TileRS:     -1,
+		},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

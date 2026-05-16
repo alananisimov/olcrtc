@@ -91,10 +91,9 @@ func TestNewConnectSendCallbacksFeaturesAndClose(t *testing.T) {
 	})
 
 	trIface, err := New(context.Background(), transport.Config{
-		Carrier:      name,
-		DeviceID:     "client",
-		VP8FPS:       30,
-		VP8BatchSize: 1,
+		Carrier:  name,
+		DeviceID: "client",
+		Options:  Options{FPS: 30, BatchSize: 1},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

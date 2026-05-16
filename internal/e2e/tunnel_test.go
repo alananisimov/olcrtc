@@ -28,6 +28,10 @@ import (
 	"github.com/openlibrecommunity/olcrtc/internal/link"
 	"github.com/openlibrecommunity/olcrtc/internal/server"
 	"github.com/openlibrecommunity/olcrtc/internal/supervisor"
+	"github.com/openlibrecommunity/olcrtc/internal/transport"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/seichannel"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/videochannel"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/vp8channel"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -656,29 +660,66 @@ func validSessionConfig(mode, carrierName, transportName string) session.Config 
 	}
 }
 
+// e2eTransportOptions builds the per-transport options bundle the e2e tests
+// pass into server.Config / client.Config. Values mirror the documented
+// validSessionConfig defaults so server and client end up agreeing on the
+// transport tuning.
+func e2eTransportOptions(transportName string) transport.Options {
+	switch transportName {
+	case "videochannel":
+		return videochannel.Options{
+			Width:      1080,
+			Height:     1080,
+			FPS:        60,
+			Bitrate:    "5000k",
+			HW:         videoHWNone,
+			QRSize:     512,
+			QRRecovery: "low",
+			Codec:      "qrcode",
+			TileModule: 4,
+			TileRS:     20,
+		}
+	case "vp8channel":
+		return vp8channel.Options{FPS: 60, BatchSize: 8}
+	case "seichannel":
+		return seichannel.Options{FPS: 30, BatchSize: 4, FragmentSize: 512, AckTimeoutMS: 1500}
+	}
+	return nil
+}
+
 func validLinkConfig(carrierName, transportName string) link.Config {
 	cfg := validSessionConfig("cnc", carrierName, transportName)
+	var opts transport.Options
+	switch transportName {
+	case "videochannel":
+		opts = videochannel.Options{
+			Width:      cfg.VideoWidth,
+			Height:     cfg.VideoHeight,
+			FPS:        cfg.VideoFPS,
+			Bitrate:    cfg.VideoBitrate,
+			HW:         cfg.VideoHW,
+			Codec:      cfg.VideoCodec,
+			TileModule: cfg.VideoTileModule,
+			TileRS:     cfg.VideoTileRS,
+		}
+	case "vp8channel":
+		opts = vp8channel.Options{FPS: cfg.VP8FPS, BatchSize: cfg.VP8BatchSize}
+	case "seichannel":
+		opts = seichannel.Options{
+			FPS:          cfg.SEIFPS,
+			BatchSize:    cfg.SEIBatchSize,
+			FragmentSize: cfg.SEIFragmentSize,
+			AckTimeoutMS: cfg.SEIAckTimeoutMS,
+		}
+	}
 	return link.Config{
-		Transport:       cfg.Transport,
-		Carrier:         cfg.Auth,
-		RoomURL:         testRoom,
-		DeviceID:        "e2e-link-test",
-		Name:            "e2e-" + carrierName + "-" + transportName,
-		DNSServer:       cfg.DNSServer,
-		VideoWidth:      cfg.VideoWidth,
-		VideoHeight:     cfg.VideoHeight,
-		VideoFPS:        cfg.VideoFPS,
-		VideoBitrate:    cfg.VideoBitrate,
-		VideoHW:         cfg.VideoHW,
-		VideoCodec:      cfg.VideoCodec,
-		VideoTileModule: cfg.VideoTileModule,
-		VideoTileRS:     cfg.VideoTileRS,
-		VP8FPS:          cfg.VP8FPS,
-		VP8BatchSize:    cfg.VP8BatchSize,
-		SEIFPS:          cfg.SEIFPS,
-		SEIBatchSize:    cfg.SEIBatchSize,
-		SEIFragmentSize: cfg.SEIFragmentSize,
-		SEIAckTimeoutMS: cfg.SEIAckTimeoutMS,
+		Transport:        cfg.Transport,
+		Carrier:          cfg.Auth,
+		RoomURL:          testRoom,
+		DeviceID:         "e2e-link-test",
+		Name:             "e2e-" + carrierName + "-" + transportName,
+		DNSServer:        cfg.DNSServer,
+		TransportOptions: opts,
 	}
 }
 
@@ -804,29 +845,14 @@ func startRealTunnel(
 	serverErr := make(chan error, 1)
 	go func() {
 		serverErr <- server.Run(runCtx, server.Config{
-			Link:            linkDirect,
-			Transport:       transportName,
-			Carrier:         carrierName,
-			RoomURL:         roomURL,
-			ChannelID:       channelID,
-			KeyHex:          testKeyHex,
-			DNSServer:       localDNSServer,
-			VideoWidth:      1080,
-			VideoHeight:     1080,
-			VideoFPS:        60,
-			VideoBitrate:    "5000k",
-			VideoHW:         videoHWNone,
-			VideoQRSize:     512,
-			VideoQRRecovery: "low",
-			VideoCodec:      "qrcode",
-			VideoTileModule: 4,
-			VideoTileRS:     20,
-			VP8FPS:          60,
-			VP8BatchSize:    8,
-			SEIFPS:          30,
-			SEIBatchSize:    4,
-			SEIFragmentSize: 512,
-			SEIAckTimeoutMS: 1500,
+			Link:             linkDirect,
+			Transport:        transportName,
+			Carrier:          carrierName,
+			RoomURL:          roomURL,
+			ChannelID:        channelID,
+			KeyHex:           testKeyHex,
+			DNSServer:        localDNSServer,
+			TransportOptions: e2eTransportOptions(transportName),
 		})
 	}()
 
@@ -844,31 +870,16 @@ func startRealTunnel(
 	clientErr := make(chan error, 1)
 	go func() {
 		clientErr <- client.RunWithReady(runCtx, client.Config{
-			Link:            linkDirect,
-			Transport:       transportName,
-			Carrier:         carrierName,
-			RoomURL:         roomURL,
-			ChannelID:       channelID,
-			KeyHex:          testKeyHex,
-			DeviceID:        clientDeviceID,
-			LocalAddr:       socksAddr,
-			DNSServer:       localDNSServer,
-			VideoWidth:      1080,
-			VideoHeight:     1080,
-			VideoFPS:        60,
-			VideoBitrate:    "5000k",
-			VideoHW:         videoHWNone,
-			VideoQRSize:     512,
-			VideoQRRecovery: "low",
-			VideoCodec:      "qrcode",
-			VideoTileModule: 4,
-			VideoTileRS:     20,
-			VP8FPS:          60,
-			VP8BatchSize:    8,
-			SEIFPS:          30,
-			SEIBatchSize:    4,
-			SEIFragmentSize: 512,
-			SEIAckTimeoutMS: 1500,
+			Link:             linkDirect,
+			Transport:        transportName,
+			Carrier:          carrierName,
+			RoomURL:          roomURL,
+			ChannelID:        channelID,
+			KeyHex:           testKeyHex,
+			DeviceID:         clientDeviceID,
+			LocalAddr:        socksAddr,
+			DNSServer:        localDNSServer,
+			TransportOptions: e2eTransportOptions(transportName),
 		}, func() { close(ready) })
 	}()
 
@@ -1317,33 +1328,18 @@ func failoverSessionConfig(mode, carrierName, socksHost string, socksPort int) s
 
 func clientConfigFromSession(cfg session.Config, socksAddr string) client.Config {
 	return client.Config{
-		Link:            cfg.Link,
-		Transport:       cfg.Transport,
-		Carrier:         cfg.Auth,
-		RoomURL:         cfg.RoomID,
-		KeyHex:          cfg.KeyHex,
-		LocalAddr:       socksAddr,
-		DNSServer:       cfg.DNSServer,
-		DeviceID:        testClientDeviceID,
-		VideoWidth:      cfg.VideoWidth,
-		VideoHeight:     cfg.VideoHeight,
-		VideoFPS:        cfg.VideoFPS,
-		VideoBitrate:    cfg.VideoBitrate,
-		VideoHW:         cfg.VideoHW,
-		VideoQRSize:     cfg.VideoQRSize,
-		VideoQRRecovery: cfg.VideoQRRecovery,
-		VideoCodec:      cfg.VideoCodec,
-		VideoTileModule: cfg.VideoTileModule,
-		VideoTileRS:     cfg.VideoTileRS,
-		VP8FPS:          cfg.VP8FPS,
-		VP8BatchSize:    cfg.VP8BatchSize,
-		SEIFPS:          cfg.SEIFPS,
-		SEIBatchSize:    cfg.SEIBatchSize,
-		SEIFragmentSize: cfg.SEIFragmentSize,
-		SEIAckTimeoutMS: cfg.SEIAckTimeoutMS,
-		Engine:          cfg.Engine,
-		URL:             cfg.URL,
-		Token:           cfg.Token,
+		Link:             cfg.Link,
+		Transport:        cfg.Transport,
+		Carrier:          cfg.Auth,
+		RoomURL:          cfg.RoomID,
+		KeyHex:           cfg.KeyHex,
+		LocalAddr:        socksAddr,
+		DNSServer:        cfg.DNSServer,
+		DeviceID:         testClientDeviceID,
+		TransportOptions: e2eTransportOptions(cfg.Transport),
+		Engine:           cfg.Engine,
+		URL:              cfg.URL,
+		Token:            cfg.Token,
 	}
 }
 

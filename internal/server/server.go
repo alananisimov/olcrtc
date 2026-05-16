@@ -89,36 +89,21 @@ type ConnectRequest struct {
 
 // Config holds runtime configuration for [Run].
 type Config struct {
-	Link            string
-	Transport       string
-	Carrier         string
-	RoomURL         string
-	ChannelID       string
-	KeyHex          string
-	DNSServer       string
-	SOCKSProxyAddr  string
-	SOCKSProxyPort  int
-	VideoWidth      int
-	VideoHeight     int
-	VideoFPS        int
-	VideoBitrate    string
-	VideoHW         string
-	VideoQRSize     int
-	VideoQRRecovery string
-	VideoCodec      string
-	VideoTileModule int
-	VideoTileRS     int
-	VP8FPS          int
-	VP8BatchSize    int
-	SEIFPS          int
-	SEIBatchSize    int
-	SEIFragmentSize int
-	SEIAckTimeoutMS int
-	Engine          string
-	URL             string
-	Token           string
-	Liveness        control.Config
-	Traffic         transport.TrafficConfig
+	Link             string
+	Transport        string
+	Carrier          string
+	RoomURL          string
+	ChannelID        string
+	KeyHex           string
+	DNSServer        string
+	SOCKSProxyAddr   string
+	SOCKSProxyPort   int
+	TransportOptions transport.Options
+	Engine           string
+	URL              string
+	Token            string
+	Liveness         control.Config
+	Traffic          transport.TrafficConfig
 
 	// AuthHook is invoked after CLIENT_HELLO to authorize the client and
 	// return a session ID. If nil, every client is admitted with a random UUID.
@@ -269,36 +254,21 @@ func (s *Server) bringUpLink(
 	cancel context.CancelFunc,
 ) error {
 	ln, err := link.New(ctx, cfg.Link, link.Config{
-		Transport:       cfg.Transport,
-		Carrier:         cfg.Carrier,
-		RoomURL:         cfg.RoomURL,
-		Engine:          cfg.Engine,
-		URL:             cfg.URL,
-		Token:           cfg.Token,
-		ChannelID:       cfg.ChannelID,
-		DeviceID:        "",
-		Name:            names.Generate(),
-		OnData:          s.onData,
-		DNSServer:       s.dnsServer,
-		ProxyAddr:       s.socksProxyAddr,
-		ProxyPort:       s.socksProxyPort,
-		VideoWidth:      cfg.VideoWidth,
-		VideoHeight:     cfg.VideoHeight,
-		VideoFPS:        cfg.VideoFPS,
-		VideoBitrate:    cfg.VideoBitrate,
-		VideoHW:         cfg.VideoHW,
-		VideoQRSize:     cfg.VideoQRSize,
-		VideoQRRecovery: cfg.VideoQRRecovery,
-		VideoCodec:      cfg.VideoCodec,
-		VideoTileModule: cfg.VideoTileModule,
-		VideoTileRS:     cfg.VideoTileRS,
-		VP8FPS:          cfg.VP8FPS,
-		VP8BatchSize:    cfg.VP8BatchSize,
-		SEIFPS:          cfg.SEIFPS,
-		SEIBatchSize:    cfg.SEIBatchSize,
-		SEIFragmentSize: cfg.SEIFragmentSize,
-		SEIAckTimeoutMS: cfg.SEIAckTimeoutMS,
-		Traffic:         cfg.Traffic,
+		Transport:        cfg.Transport,
+		Carrier:          cfg.Carrier,
+		RoomURL:          cfg.RoomURL,
+		Engine:           cfg.Engine,
+		URL:              cfg.URL,
+		Token:            cfg.Token,
+		ChannelID:        cfg.ChannelID,
+		DeviceID:         "",
+		Name:             names.Generate(),
+		OnData:           s.onData,
+		DNSServer:        s.dnsServer,
+		ProxyAddr:        s.socksProxyAddr,
+		ProxyPort:        s.socksProxyPort,
+		TransportOptions: cfg.TransportOptions,
+		Traffic:          cfg.Traffic,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create link: %w", err)

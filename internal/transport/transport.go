@@ -1,16 +1,24 @@
 // Package transport defines transport abstractions and registry.
+//
+// A transport encodes byte payloads onto a carrier (engine) primitive — either
+// a reliable byte stream (datachannel) or a video track (videochannel,
+// seichannel, vp8channel). Transport-specific tuning lives in per-transport
+// Options types; the common configuration shared by every transport lives in
+// [Config].
 package transport
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
-var (
-	// ErrTransportNotFound is returned when a requested transport is not registered.
-	ErrTransportNotFound = errors.New("transport not found")
-)
+// ErrTransportNotFound is returned when a requested transport is not registered.
+var ErrTransportNotFound = errors.New("transport not found")
+
+// ErrOptionsTypeMismatch is returned when a transport receives options of the wrong type.
+var ErrOptionsTypeMismatch = errors.New("transport options type mismatch")
 
 // Features describes the delivery semantics of a transport.
 type Features struct {
@@ -33,6 +41,14 @@ type Transport interface {
 	Features() Features
 }
 
+// Options is a marker for per-transport option structs. Each transport package
+// defines its own Options type (e.g. videochannel.Options) and registers a
+// factory that consumes it via type assertion. A nil Options is valid for
+// transports that need no extra configuration (e.g. datachannel).
+type Options interface {
+	TransportOptions()
+}
+
 // TrafficConfig controls optional reliability-oriented send shaping.
 type TrafficConfig struct {
 	MaxPayloadSize int
@@ -40,39 +56,30 @@ type TrafficConfig struct {
 	MaxDelay       time.Duration
 }
 
-// Config holds common transport configuration.
+// Config holds common transport configuration applicable to every transport.
 type Config struct {
+	// Carrier is the auth-provider name; engine/URL/token are resolved through it.
 	Carrier string
 	RoomURL string
 	// Engine, URL, Token are forwarded to carrier.Config for the "none" auth
 	// carrier (direct engine access without a service-specific auth flow).
-	Engine          string
-	URL             string
-	Token           string
-	ChannelID       string
-	DeviceID        string
-	Name            string
-	OnData          func([]byte)
-	DNSServer       string
-	ProxyAddr       string
-	ProxyPort       int
-	VideoWidth      int
-	VideoHeight     int
-	VideoFPS        int
-	VideoBitrate    string
-	VideoHW         string
-	VideoQRSize     int
-	VideoQRRecovery string
-	VideoCodec      string
-	VideoTileModule int
-	VideoTileRS     int
-	VP8FPS          int
-	VP8BatchSize    int
-	SEIFPS          int
-	SEIBatchSize    int
-	SEIFragmentSize int
-	SEIAckTimeoutMS int
-	Traffic         TrafficConfig
+	Engine    string
+	URL       string
+	Token     string
+	ChannelID string
+	DeviceID  string
+	Name      string
+	OnData    func([]byte)
+	DNSServer string
+	ProxyAddr string
+	ProxyPort int
+
+	// Options carries transport-specific tuning. Type is per-transport-package.
+	Options Options
+
+	// Traffic controls payload-size and pacing shaping applied around the
+	// underlying transport's Send.
+	Traffic TrafficConfig
 }
 
 // Factory creates a transport instance.
@@ -89,7 +96,7 @@ func Register(name string, factory Factory) {
 func New(ctx context.Context, name string, cfg Config) (Transport, error) {
 	factory, ok := registry[name]
 	if !ok {
-		return nil, ErrTransportNotFound
+		return nil, fmt.Errorf("%w: %q", ErrTransportNotFound, name)
 	}
 	tr, err := factory(ctx, cfg)
 	if err != nil {

@@ -117,6 +117,11 @@ type streamTransport struct {
 
 // New creates a vp8channel transport backed by a carrier.
 func New(ctx context.Context, cfg transport.Config) (transport.Transport, error) {
+	opts, err := optionsFrom(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	session, err := carrier.New(ctx, cfg.Carrier, carrier.Config{
 		RoomURL:   cfg.RoomURL,
 		Name:      cfg.Name,
@@ -156,8 +161,14 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		return nil, fmt.Errorf("create local video track: %w", err)
 	}
 
-	fps := cfg.VP8FPS
-	batchSize := cfg.VP8BatchSize
+	fps := opts.FPS
+	batchSize := opts.BatchSize
+	if fps <= 0 {
+		fps = 25
+	}
+	if batchSize <= 0 {
+		batchSize = 1
+	}
 
 	tr := &streamTransport{
 		stream:        stream,

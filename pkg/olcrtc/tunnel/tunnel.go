@@ -41,7 +41,14 @@ import (
 	"github.com/openlibrecommunity/olcrtc/internal/app/session"
 	"github.com/openlibrecommunity/olcrtc/internal/handshake"
 	"github.com/openlibrecommunity/olcrtc/internal/server"
+	"github.com/openlibrecommunity/olcrtc/internal/transport"
 )
+
+// TransportOptions is the marker type for transport-specific tuning options.
+// Pass a value from the corresponding transport package (videochannel.Options,
+// vp8channel.Options, seichannel.Options) or nil for transports without
+// tunables (datachannel).
+type TransportOptions = transport.Options
 
 // AuthFunc is invoked after CLIENT_HELLO to authorize the client and issue a
 // session ID. Returning a non-nil error rejects the handshake; the error's
@@ -82,22 +89,10 @@ type Config struct {
 	SOCKSProxyPort int    // optional outbound SOCKS5 proxy port
 
 	// --- transport tuning ---
-	VideoWidth      int
-	VideoHeight     int
-	VideoFPS        int
-	VideoBitrate    string
-	VideoHW         string
-	VideoQRSize     int
-	VideoQRRecovery string
-	VideoCodec      string
-	VideoTileModule int
-	VideoTileRS     int
-	VP8FPS          int
-	VP8BatchSize    int
-	SEIFPS          int
-	SEIBatchSize    int
-	SEIFragmentSize int
-	SEIAckTimeoutMS int
+	// TransportOptions carries transport-specific tuning. Use the Options
+	// type from the corresponding internal/transport/* package, or leave nil
+	// for transports that need no extra configuration (datachannel).
+	TransportOptions TransportOptions
 
 	// --- hooks ---
 	// AuthHook authorizes the client. If nil, every client is admitted with a
@@ -125,37 +120,22 @@ func New(cfg Config) *Server {
 // Run starts the server and blocks until ctx is cancelled or the carrier ends.
 func (s *Server) Run(ctx context.Context) error {
 	if err := server.Run(ctx, server.Config{
-		Link:            s.cfg.Link,
-		Transport:       s.cfg.Transport,
-		Carrier:         s.cfg.Carrier,
-		RoomURL:         s.cfg.RoomURL,
-		Engine:          s.cfg.Engine,
-		URL:             s.cfg.URL,
-		Token:           s.cfg.Token,
-		KeyHex:          s.cfg.KeyHex,
-		DNSServer:       s.cfg.DNSServer,
-		SOCKSProxyAddr:  s.cfg.SOCKSProxyAddr,
-		SOCKSProxyPort:  s.cfg.SOCKSProxyPort,
-		VideoWidth:      s.cfg.VideoWidth,
-		VideoHeight:     s.cfg.VideoHeight,
-		VideoFPS:        s.cfg.VideoFPS,
-		VideoBitrate:    s.cfg.VideoBitrate,
-		VideoHW:         s.cfg.VideoHW,
-		VideoQRSize:     s.cfg.VideoQRSize,
-		VideoQRRecovery: s.cfg.VideoQRRecovery,
-		VideoCodec:      s.cfg.VideoCodec,
-		VideoTileModule: s.cfg.VideoTileModule,
-		VideoTileRS:     s.cfg.VideoTileRS,
-		VP8FPS:          s.cfg.VP8FPS,
-		VP8BatchSize:    s.cfg.VP8BatchSize,
-		SEIFPS:          s.cfg.SEIFPS,
-		SEIBatchSize:    s.cfg.SEIBatchSize,
-		SEIFragmentSize: s.cfg.SEIFragmentSize,
-		SEIAckTimeoutMS: s.cfg.SEIAckTimeoutMS,
-		AuthHook:        s.cfg.AuthHook,
-		OnSessionOpen:   s.cfg.OnSessionOpen,
-		OnSessionClose:  s.cfg.OnSessionClose,
-		OnTraffic:       s.cfg.OnTraffic,
+		Link:             s.cfg.Link,
+		Transport:        s.cfg.Transport,
+		Carrier:          s.cfg.Carrier,
+		RoomURL:          s.cfg.RoomURL,
+		Engine:           s.cfg.Engine,
+		URL:              s.cfg.URL,
+		Token:            s.cfg.Token,
+		KeyHex:           s.cfg.KeyHex,
+		DNSServer:        s.cfg.DNSServer,
+		SOCKSProxyAddr:   s.cfg.SOCKSProxyAddr,
+		SOCKSProxyPort:   s.cfg.SOCKSProxyPort,
+		TransportOptions: s.cfg.TransportOptions,
+		AuthHook:         s.cfg.AuthHook,
+		OnSessionOpen:    s.cfg.OnSessionOpen,
+		OnSessionClose:   s.cfg.OnSessionClose,
+		OnTraffic:        s.cfg.OnTraffic,
 	}); err != nil {
 		return fmt.Errorf("tunnel: %w", err)
 	}

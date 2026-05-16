@@ -83,6 +83,11 @@ type streamTransport struct {
 
 // New creates a visual videochannel transport backed by a carrier.
 func New(ctx context.Context, cfg transport.Config) (transport.Transport, error) {
+	opts, err := optionsFrom(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	session, err := carrier.New(ctx, cfg.Carrier, carrier.Config{
 		RoomURL:   cfg.RoomURL,
 		Name:      cfg.Name,
@@ -117,17 +122,17 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		return nil, fmt.Errorf("create local video track: %w", err)
 	}
 
-	qrSize := cfg.VideoQRSize
+	qrSize := opts.QRSize
 	if qrSize <= 0 {
 		qrSize = defaultFragmentSize
 	}
 
-	tileModule := cfg.VideoTileModule
+	tileModule := opts.TileModule
 	if tileModule <= 0 {
 		tileModule = 4
 	}
 
-	tileRS := cfg.VideoTileRS
+	tileRS := opts.TileRS
 	if tileRS < 0 {
 		tileRS = 20
 	}
@@ -145,14 +150,14 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		ackWaiters:      make(map[uint32]chan uint32),
 		inbound:         make(map[uint32]*inboundMessage),
 		delivered:       make(map[uint32]uint32),
-		videoW:          cfg.VideoWidth,
-		videoH:          cfg.VideoHeight,
-		videoFPS:        cfg.VideoFPS,
-		videoBitrate:    cfg.VideoBitrate,
-		videoHW:         cfg.VideoHW,
+		videoW:          opts.Width,
+		videoH:          opts.Height,
+		videoFPS:        opts.FPS,
+		videoBitrate:    opts.Bitrate,
+		videoHW:         opts.HW,
 		videoQRSize:     qrSize,
-		videoQRRecovery: cfg.VideoQRRecovery,
-		videoCodec:      cfg.VideoCodec,
+		videoQRRecovery: opts.QRRecovery,
+		videoCodec:      opts.Codec,
 		videoTileModule: tileModule,
 		videoTileRS:     tileRS,
 		localRole:       localFrameRole(cfg.DeviceID),

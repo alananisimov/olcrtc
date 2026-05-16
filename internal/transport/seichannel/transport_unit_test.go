@@ -74,11 +74,13 @@ func TestNewConnectCallbacksAndFeatures(t *testing.T) {
 	})
 
 	trIface, err := New(t.Context(), transport.Config{
-		Carrier:         name,
-		SEIFPS:          40,
-		SEIBatchSize:    3,
-		SEIFragmentSize: 512,
-		SEIAckTimeoutMS: 1500,
+		Carrier: name,
+		Options: Options{
+			FPS:          40,
+			BatchSize:    3,
+			FragmentSize: 512,
+			AckTimeoutMS: 1500,
+		},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
