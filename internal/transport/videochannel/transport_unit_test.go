@@ -10,7 +10,6 @@ import (
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/transport"
-	"github.com/openlibrecommunity/olcrtc/internal/transport/common"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -156,23 +155,30 @@ func TestSendAckAndClosePaths(t *testing.T) {
 		outboundAck: make(chan []byte, 8),
 		closeCh:     make(chan struct{}),
 		writerDone:  make(chan struct{}),
-		acks:        common.NewAckRegistry(),
+		fragAcks:    newFragAckTracker(),
 		videoQRSize: 4,
 	}
 
+	// "payload" = 7 bytes; with qrSize=4 -> two fragments. Send returns
+	// only after both fragIdx 0 and 1 have been acked.
 	done := make(chan error, 1)
 	payload := []byte("payload")
 	go func() { done <- tr.Send(payload) }()
 
-	select {
-	case frame := <-tr.outbound:
-		decoded, err := decodeTransportFrame(frame)
-		if err != nil {
-			t.Fatalf("decodeTransportFrame() error = %v", err)
+	wantCRC := crc32.ChecksumIEEE(payload)
+	seen := 0
+	for seen < 2 {
+		select {
+		case frame := <-tr.outbound:
+			decoded, err := decodeTransportFrame(frame)
+			if err != nil {
+				t.Fatalf("decodeTransportFrame() error = %v", err)
+			}
+			tr.resolveAck(decoded.seq, wantCRC, decoded.fragIdx)
+			seen++
+		case <-time.After(time.Second):
+			t.Fatalf("Send() did not enqueue fragment %d", seen)
 		}
-		tr.resolveAck(decoded.seq, crc32.ChecksumIEEE(payload))
-	case <-time.After(time.Second):
-		t.Fatal("Send() did not enqueue frame")
 	}
 
 	if err := <-done; err != nil {
@@ -237,6 +243,36 @@ func TestOutboundPriorityRenderAndClosedEnqueue(t *testing.T) {
 	tr.closed.Store(true)
 	if err := tr.enqueueFrame([]byte("closed"), false); !errors.Is(err, ErrTransportClosed) {
 		t.Fatalf("enqueueFrame(closed) error = %v, want %v", err, ErrTransportClosed)
+	}
+}
+
+// TestPerAttemptAckTimeoutScalesWithFragments locks in the rule that the
+// per-attempt ack budget covers a full FPS-paced round trip through every
+// fragment. Without this, multi-fragment payloads trigger premature
+// retransmits that pile fragments into the outbound channel and starve
+// the ffmpeg encoder until it is killed.
+func TestPerAttemptAckTimeoutScalesWithFragments(t *testing.T) {
+	// Tiny payload: floor at defaultAckTimeout.
+	if got := perAttemptAckTimeout(1, 25); got != defaultAckTimeout {
+		t.Fatalf("perAttemptAckTimeout(1,25) = %v, want %v", got, defaultAckTimeout)
+	}
+	if got := perAttemptAckTimeout(2, 25); got != defaultAckTimeout {
+		t.Fatalf("perAttemptAckTimeout(2,25) = %v, want %v", got, defaultAckTimeout)
+	}
+
+	// 16 fragments @ 25 FPS: 16 * 40ms * 3 = 1920ms.
+	if got, want := perAttemptAckTimeout(16, 25), 1920*time.Millisecond; got != want {
+		t.Fatalf("perAttemptAckTimeout(16,25) = %v, want %v", got, want)
+	}
+
+	// Large payload caps at 30s.
+	if got, want := perAttemptAckTimeout(10000, 25), 30*time.Second; got != want {
+		t.Fatalf("perAttemptAckTimeout(10000,25) = %v, want %v", got, want)
+	}
+
+	// Zero/negative fps falls back to 25 FPS default.
+	if got := perAttemptAckTimeout(1, 0); got != defaultAckTimeout {
+		t.Fatalf("perAttemptAckTimeout(1,0) = %v, want %v", got, defaultAckTimeout)
 	}
 }
 

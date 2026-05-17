@@ -71,7 +71,7 @@ type streamTransport struct {
 	writerUp        atomic.Bool
 	sendMu          sync.Mutex
 	startWriter     sync.Once
-	acks            *common.AckRegistry
+	fragAcks        *fragAckTracker
 	reassembler    *common.Reassembler
 	videoW          int
 	videoH          int
@@ -157,7 +157,7 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 		closeCh:         make(chan struct{}),
 		writerDone:      make(chan struct{}),
 		decoders:        make(map[*ffmpegDecoder]struct{}),
-		acks:            common.NewAckRegistry(),
+		fragAcks:        newFragAckTracker(),
 		reassembler:     common.NewReassembler(256),
 		videoW:          opts.Width,
 		videoH:          opts.Height,
@@ -218,7 +218,14 @@ func (p *streamTransport) Connect(ctx context.Context) error {
 	return nil
 }
 
-// Send transmits data through the transport.
+// Send transmits data through the transport with per-fragment retransmits.
+//
+// QR/tile-encoded fragments ride lossy VP8 video frames where any single
+// fragment can be corrupted past ECC recovery. With whole-message ack
+// semantics a single dropped fragment forced a full retransmit; under
+// load that piled fragments into the outbound channel and eventually
+// killed the encoder. Here each fragment is acked independently and only
+// the unacked ones are resent.
 func (p *streamTransport) Send(data []byte) error {
 	if p.closed.Load() {
 		return ErrTransportClosed
@@ -230,32 +237,84 @@ func (p *streamTransport) Send(data []byte) error {
 	seq := p.nextSeq.Add(1)
 	crc := crc32.ChecksumIEEE(data)
 	fragments := common.FragmentPayload(data, p.videoQRSize)
-	waiter := p.acks.Register(seq)
-	defer p.acks.Unregister(seq)
+	waiter := p.fragAcks.Register(seq, crc, len(fragments))
+	defer p.fragAcks.Unregister(seq)
+
+	// Per-attempt wait covers one round trip through the FPS-paced writer
+	// and the peer's reassembly + ack path. Scale with fragment count so a
+	// large payload gets enough time to drain on the first attempt before
+	// we retransmit anything.
+	ackTimeout := perAttemptAckTimeout(len(fragments), p.videoFPS)
+
+	// Initial send: every fragment goes out once.
+	pending := make([]int, len(fragments))
+	for i := range pending {
+		pending[i] = i
+	}
 
 	for range maxSendAttempts {
-		for idx, fragment := range fragments {
-			frame := encodeDataFrameForBinding(p.localRole, p.bindingToken, seq, crc, len(data), idx, len(fragments), fragment)
+		for _, idx := range pending {
+			frame := encodeDataFrameForBinding(
+				p.localRole, p.bindingToken, seq, crc,
+				len(data), idx, len(fragments), fragments[idx])
 			if err := p.enqueueFrame(frame, false); err != nil {
 				return err
 			}
 		}
 
-		timer := time.NewTimer(defaultAckTimeout)
-		select {
-		case ackCRC := <-waiter:
-			timer.Stop()
-			if ackCRC == crc {
-				return nil
-			}
-		case <-timer.C:
-		case <-p.closeCh:
-			timer.Stop()
-			return ErrTransportClosed
+		if ok, err := p.awaitFragments(waiter, ackTimeout); err != nil {
+			return err
+		} else if ok {
+			return nil
+		}
+		pending = waiter.Pending()
+		if len(pending) == 0 {
+			return nil
 		}
 	}
 
 	return ErrAckTimeout
+}
+
+// awaitFragments blocks until the waiter is fully acked, the per-attempt
+// timeout elapses, or the transport closes. Returns (done, err).
+func (p *streamTransport) awaitFragments(waiter *fragWaiter, timeout time.Duration) (bool, error) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		if waiter.Done() {
+			return true, nil
+		}
+		select {
+		case <-waiter.Notify():
+			// Re-check Done() at the top of the loop.
+		case <-timer.C:
+			return waiter.Done(), nil
+		case <-p.closeCh:
+			return false, ErrTransportClosed
+		}
+	}
+}
+
+// perAttemptAckTimeout returns how long to wait for acks of a multi-fragment
+// payload before retransmitting unacked fragments. Floor at defaultAckTimeout
+// for tiny payloads; otherwise scale linearly with fragment count to cover
+// one round trip through the FPS-paced writerLoop plus reassembly on the peer
+// side, with a 3× margin.
+func perAttemptAckTimeout(fragments, fps int) time.Duration {
+	if fps <= 0 {
+		fps = 25
+	}
+	frameInterval := time.Second / time.Duration(fps)
+	estimated := time.Duration(fragments) * frameInterval * 3
+	if estimated < defaultAckTimeout {
+		return defaultAckTimeout
+	}
+	const maxAckTimeout = 30 * time.Second
+	if estimated > maxAckTimeout {
+		return maxAckTimeout
+	}
+	return estimated
 }
 
 // Close terminates the transport.
@@ -559,7 +618,7 @@ func (p *streamTransport) handleFrame(frame []byte) {
 
 	switch decoded.typ {
 	case frameTypeAck:
-		p.resolveAck(decoded.seq, decoded.crc)
+		p.resolveAck(decoded.seq, decoded.crc, decoded.fragIdx)
 	case frameTypeData:
 		p.handleInboundFrame(decoded)
 	}
@@ -575,24 +634,30 @@ func (p *streamTransport) handleInboundFrame(frame transportFrame) {
 		Payload:   frame.payload,
 	})
 	switch result {
-	case common.ResultDuplicate:
-		p.sendAck(frame.seq, frame.crc)
 	case common.ResultDelivered:
 		if p.onData != nil {
 			p.onData(data)
 		}
-		p.sendAck(frame.seq, frame.crc)
-	case common.ResultPartial, common.ResultIgnore:
-		// fragment stored or discarded; no peer response needed yet.
+		// All fragments of this seq are in; ack this fragment. The sender
+		// learns full delivery once it has accumulated acks for every
+		// fragment it sent.
+		p.sendAck(frame.seq, frame.crc, frame.fragIdx)
+	case common.ResultPartial, common.ResultDuplicate:
+		// Every fragment we successfully decoded gets acked, including
+		// duplicates — under retransmits the sender may have lost the
+		// earlier ack and is waiting on this one.
+		p.sendAck(frame.seq, frame.crc, frame.fragIdx)
+	case common.ResultIgnore:
+		// Malformed or out-of-range; no ack.
 	}
 }
 
-func (p *streamTransport) sendAck(seq, crc uint32) {
-	_ = p.enqueueFrame(encodeAckFrameForBinding(p.localRole, p.bindingToken, seq, crc), true)
+func (p *streamTransport) sendAck(seq, crc uint32, fragIdx uint16) {
+	_ = p.enqueueFrame(encodeAckFrameForBinding(p.localRole, p.bindingToken, seq, crc, fragIdx), true)
 }
 
-func (p *streamTransport) resolveAck(seq, crc uint32) {
-	p.acks.Resolve(seq, crc)
+func (p *streamTransport) resolveAck(seq, crc uint32, fragIdx uint16) {
+	p.fragAcks.Mark(seq, crc, int(fragIdx))
 }
 
 func localFrameRole(deviceID string) byte {

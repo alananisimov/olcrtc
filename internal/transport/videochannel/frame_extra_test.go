@@ -34,11 +34,11 @@ func TestDecodeTransportFrameErrorsAndAck(t *testing.T) {
 		}
 	}
 
-	ack, err := decodeTransportFrame(encodeAckFrame(7, 0x1234))
+	ack, err := decodeTransportFrame(encodeAckFrame(7, 0x1234, 5))
 	if err != nil {
 		t.Fatalf("decode ack error = %v", err)
 	}
-	if ack.typ != frameTypeAck || ack.seq != 7 || ack.crc != 0x1234 {
+	if ack.typ != frameTypeAck || ack.seq != 7 || ack.crc != 0x1234 || ack.fragIdx != 5 {
 		t.Fatalf("ack = %+v", ack)
 	}
 }
