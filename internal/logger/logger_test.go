@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"log"
+	"os"
 	"strings"
 	"testing"
 )
@@ -87,5 +88,20 @@ func TestPionLoggerDropsTURNRefreshNoise(t *testing.T) {
 	}
 	if !strings.Contains(got, "normal warning") {
 		t.Fatalf("expected normal warning to pass through, got %q", got)
+	}
+}
+
+func TestDisableNoisyPionLogsMergesTurncScope(t *testing.T) {
+	t.Setenv("PION_LOG_DISABLE", "ice")
+	t.Setenv("PION_LOG_ERROR", "turnc,ice")
+
+	DisableNoisyPionLogs()
+
+	got := os.Getenv("PION_LOG_DISABLE")
+	if !strings.Contains(got, "ice") || !strings.Contains(got, "turnc") {
+		t.Fatalf("PION_LOG_DISABLE = %q, want ice and turnc", got)
+	}
+	if got := os.Getenv("PION_LOG_ERROR"); got != "ice" {
+		t.Fatalf("PION_LOG_ERROR = %q, want ice", got)
 	}
 }

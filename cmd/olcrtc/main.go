@@ -72,6 +72,7 @@ func run() error {
 }
 
 func runWithArgs(args []string) error {
+	logger.DisableNoisyPionLogs()
 	session.RegisterDefaults()
 
 	if len(args) != 1 || args[0] == "-h" || args[0] == "--help" || args[0] == "-help" {
@@ -335,9 +336,9 @@ func (f filteredWriter) Write(p []byte) (int, error) {
 
 func configureLogging(debug bool) {
 	log.SetOutput(filteredWriter{w: os.Stderr})
+	logger.DisableNoisyPionLogs()
 	if debug {
 		logger.SetVerbose(true)
-		_ = os.Setenv("PION_LOG_DISABLE", "turnc")
 		return
 	}
 	_ = os.Setenv("PION_LOG_DISABLE", "all")
