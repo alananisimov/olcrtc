@@ -1,3 +1,13 @@
+<div align="center">
+
+<img src="https://github.com/openlibrecommunity/material/blob/master/olcrtc.png" width="250" height="250">
+
+![License](https://img.shields.io/badge/license-WTFPL-0D1117?style=flat-square&logo=open-source-initiative&logoColor=green&labelColor=0D1117)
+![Golang](https://img.shields.io/badge/-Golang-0D1117?style=flat-square&logo=go&logoColor=00A7D0)
+
+</div>
+
+
 # Настройка YAML
 
 `olcrtc` читает runtime-настройки из одного YAML-файла. CLI принимает ровно один аргумент - путь к конфигу; отдельных CLI-флагов для режима, транспорта и провайдера больше нет.
@@ -9,31 +19,31 @@ olcrtc /etc/olcrtc/client.yaml
 
 Готовые примеры:
 
-- [`server.jitsi.datachannel.yaml`](./examples/server.jitsi.datachannel.yaml)
-- [`client.jitsi.datachannel.yaml`](./examples/client.jitsi.datachannel.yaml)
-- [`server.jitsi.videochannel.yaml`](./examples/server.jitsi.videochannel.yaml)
-- [`client.jitsi.videochannel.yaml`](./examples/client.jitsi.videochannel.yaml)
-- [`server.jitsi.seichannel.yaml`](./examples/server.jitsi.seichannel.yaml)
-- [`client.jitsi.seichannel.yaml`](./examples/client.jitsi.seichannel.yaml)
-- [`server.jitsi.vp8channel.yaml`](./examples/server.jitsi.vp8channel.yaml)
-- [`client.jitsi.vp8channel.yaml`](./examples/client.jitsi.vp8channel.yaml)
-- [`server.telemost.datachannel.yaml`](./examples/server.telemost.datachannel.yaml)
-- [`client.telemost.datachannel.yaml`](./examples/client.telemost.datachannel.yaml)
-- [`server.telemost.videochannel.yaml`](./examples/server.telemost.videochannel.yaml)
-- [`client.telemost.videochannel.yaml`](./examples/client.telemost.videochannel.yaml)
-- [`server.telemost.seichannel.yaml`](./examples/server.telemost.seichannel.yaml)
-- [`client.telemost.seichannel.yaml`](./examples/client.telemost.seichannel.yaml)
-- [`server.telemost.vp8channel.yaml`](./examples/server.telemost.vp8channel.yaml)
-- [`client.telemost.vp8channel.yaml`](./examples/client.telemost.vp8channel.yaml)
-- [`server.wbstream.datachannel.yaml`](./examples/server.wbstream.datachannel.yaml)
-- [`client.wbstream.datachannel.yaml`](./examples/client.wbstream.datachannel.yaml)
-- [`server.wbstream.videochannel.yaml`](./examples/server.wbstream.videochannel.yaml)
-- [`client.wbstream.videochannel.yaml`](./examples/client.wbstream.videochannel.yaml)
-- [`server.wbstream.seichannel.yaml`](./examples/server.wbstream.seichannel.yaml)
-- [`client.wbstream.seichannel.yaml`](./examples/client.wbstream.seichannel.yaml)
-- [`server.wbstream.vp8channel.yaml`](./examples/server.wbstream.vp8channel.yaml)
-- [`client.wbstream.vp8channel.yaml`](./examples/client.wbstream.vp8channel.yaml)
-- [`failover.yaml`](./examples/failover.yaml)
+- [`server.jitsi.datachannel.yaml`](./examples/server.jitsi.datachannel.yaml) - jitsi + datachannel srv
+- [`client.jitsi.datachannel.yaml`](./examples/client.jitsi.datachannel.yaml) - jitsi + datachannel cnc
+- [`server.jitsi.videochannel.yaml`](./examples/server.jitsi.videochannel.yaml) - jitsi + videochannel srv
+- [`client.jitsi.videochannel.yaml`](./examples/client.jitsi.videochannel.yaml) - jitsi + videochannel cnc
+- [`server.jitsi.seichannel.yaml`](./examples/server.jitsi.seichannel.yaml) - jitsi + seichannel srv
+- [`client.jitsi.seichannel.yaml`](./examples/client.jitsi.seichannel.yaml) - jitsi + seichannel cnc
+- [`server.jitsi.vp8channel.yaml`](./examples/server.jitsi.vp8channel.yaml) - jitsi + vp8channel srv
+- [`client.jitsi.vp8channel.yaml`](./examples/client.jitsi.vp8channel.yaml) - jitsi + vp8channel cnc
+- [`server.telemost.datachannel.yaml`](./examples/server.telemost.datachannel.yaml) - telemost + datachannel srv
+- [`client.telemost.datachannel.yaml`](./examples/client.telemost.datachannel.yaml) - telemost + datachannel cnc
+- [`server.telemost.videochannel.yaml`](./examples/server.telemost.videochannel.yaml) - telemost + videochannel srv
+- [`client.telemost.videochannel.yaml`](./examples/client.telemost.videochannel.yaml) - telemost + videochannel cnc
+- [`server.telemost.seichannel.yaml`](./examples/server.telemost.seichannel.yaml) - telemost + seichannel srv
+- [`client.telemost.seichannel.yaml`](./examples/client.telemost.seichannel.yaml) - telemost + seichannel
+- [`server.telemost.vp8channel.yaml`](./examples/server.telemost.vp8channel.yaml) - telemost + vp8channel srv
+- [`client.telemost.vp8channel.yaml`](./examples/client.telemost.vp8channel.yaml) - telemost + vp8channel cnc
+- [`server.wbstream.datachannel.yaml`](./examples/server.wbstream.datachannel.yaml) - wbstream + datachannel srv
+- [`client.wbstream.datachannel.yaml`](./examples/client.wbstream.datachannel.yaml) - wbstream + datachannel cnc
+- [`server.wbstream.videochannel.yaml`](./examples/server.wbstream.videochannel.yaml) - wbstream + videochannel srv
+- [`client.wbstream.videochannel.yaml`](./examples/client.wbstream.videochannel.yaml) - wbstream + videochannel cnc
+- [`server.wbstream.seichannel.yaml`](./examples/server.wbstream.seichannel.yaml) - wbstream + seichannel srv
+- [`client.wbstream.seichannel.yaml`](./examples/client.wbstream.seichannel.yaml) - wbstream + seichannel cnc
+- [`server.wbstream.vp8channel.yaml`](./examples/server.wbstream.vp8channel.yaml) - wbstream + vp8channel srv
+- [`client.wbstream.vp8channel.yaml`](./examples/client.wbstream.vp8channel.yaml) - wbstream + vp8channel cnc
+- [`failover.yaml`](./examples/failover.yaml) - failover
 
 ## Схема
 
@@ -80,7 +90,7 @@ mode: srv
 auth:
   provider: jitsi
 room:
-  id: "https://meet.cryptopro.ru/myroom"
+  id: "https://meet.cryptopro.ru/REPLACE_ME_WITH_ROOM_ID"
 crypto:
   key: "REPLACE_ME_WITH_64_HEX_CHARS"
 net:
@@ -96,7 +106,7 @@ mode: cnc
 auth:
   provider: jitsi
 room:
-  id: "https://meet.cryptopro.ru/myroom"
+  id: "https://meet.cryptopro.ru/REPLACE_ME_WITH_ROOM_ID"
 crypto:
   key: "REPLACE_ME_WITH_64_HEX_CHARS"
 net:

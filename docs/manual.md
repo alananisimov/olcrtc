@@ -12,9 +12,21 @@
 Этот способ для тех кто хочет собрать бинарник руками без Docker/Podman.
 Нужен Go 1.25+, mage, git.
 
-Проект в бете. По проблемам: t.me/openlibrecommunity
+---
+
+
+### swap (ОЗУ)
+
+Если у вас меньше 4ГБ оперативной памяти, сборка может вылетать. **Обязательно включите SWAP**:
+
+```bash
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+```
+
 
 ---
+
+## Что нужно установить
 
 ## Шаг 1: Установить git
 
@@ -31,7 +43,7 @@ dnf install git       # Fedora / RHEL   / CentOS
 ### Arch / Fedora (всё просто)
 
 ```sh
-pacman -S go    # Arch / CachyOS / Manjaro
+pacman -S go    # Arch    / CachyOS / Manjaro
 dnf install go  # Fedora / RHEL   / CentOS
 ```
 
@@ -106,7 +118,6 @@ git clone https://github.com/openlibrecommunity/olcrtc --recurse-submodules
 cd olcrtc
 ```
 
-`--recurse-submodules` обязателен - без него videochannel не соберётся.
 
 ---
 
@@ -121,9 +132,6 @@ mage cross   # все платформы сразу (если собираешь
 
 ```
 build/olcrtc-linux-amd64
-build/olcrtc-linux-arm64
-build/olcrtc-windows-amd64.exe
-build/olcrtc-darwin-amd64
 ```
 
 ---
@@ -313,12 +321,6 @@ curl --socks5-hostname 127.0.0.1:8808 https://icanhazip.com
 
 Должен вернуть IP сервера.
 
-Или выставить переменную чтобы весь трафик шёл через прокси:
-
-```sh
-export all_proxy=socks5h://127.0.0.1:8808
-curl https://icanhazip.com
-```
 
 ---
 

@@ -22,25 +22,25 @@
 ### git
 
 ```sh
-apt install git    # Debian / Ubuntu / Mint
-pacman -S git      # Arch / CacheOS / Manjaro
+apt install git    # Debian   / Ubuntu   / Mint
+pacman -S git      # Arch    / CacheOS / Manjaro
 dnf install git    # Fedora / RHEL / CentOS
 ```
 
 ### podman
 
 ```sh
-apt install podman   # Debian / Ubuntu / Mint
-pacman -S podman     # Arch / CacheOS / Manjaro
-dnf install podman   # Fedora / RHEL / CentOS
+apt install podman   # Debian   / Ubuntu   / Mint
+pacman -S podman     # Arch    / CacheOS / Manjaro
+dnf install podman   # Fedora / RHEL    / CentOS
 ```
 
 ### curl
 
 ```sh
-apt install curl      # Debian / Ubuntu/ Mint
-pacman -S curl        # Arch / CacheOS / Manjaro
-dnf install curl      # Fedora
+apt install curl      # Debian   / Ubuntu  / Mint
+pacman -S curl        # Arch    / CacheOS / Manjaro
+dnf install curl      # Fedora / RHEL    / CentOS
 ```
 
 ### swap (ОЗУ)
@@ -74,8 +74,6 @@ cd olcrtc
 ./script/srv.sh
 ```
 
-Скрипт задаст несколько вопросов.
-
 #### Флаги `srv.sh`
 
 | Флаг | Что делает |
@@ -102,7 +100,7 @@ cd olcrtc
 
 Выбери сервис. Полную матрицу совместимости смотри в [settings.md](settings.md).
 
-**По умолчанию `jitsi`** — стабильно работает на datachannel против self-hosted и публичных Jitsi инстансов (например `meet.cryptopro.ru`).
+**По умолчанию `jitsi`** - стабильно работает на datachannel против self-hosted и публичных Jitsi инстансов (например `meet.cryptopro.ru`).
 
 ### Transport (как именно передавать данные)
 
@@ -121,7 +119,7 @@ cd olcrtc
 - **seichannel** - работает только с wbstream, медленный, но мелкий пинг.
 - **videochannel** - работает с wbstream стабильно, с telemost по возможности; самый медленный и с большим пингом.
 
-**Рекомендуемая комбинация: `jitsi + datachannel`** — работает стабильно, не требует регистрации, легко поднимать на своём сервере. Альтернатива: `wbstream + vp8channel`.
+**Рекомендуемая комбинация: `jitsi + datachannel`** - работает стабильно, не требует регистрации, легко поднимать на своём сервере. Альтернатива: `wbstream + vp8channel`.
 
 ### Room ID
 
@@ -131,7 +129,7 @@ cd olcrtc
 
 Для **jitsi** — полный URL комнаты в формате `https://host/room` (например `https://meet.cryptopro.ru/myroom`). Имя комнаты придумывается на лету, без регистрации. Подойдёт любой публичный или self-hosted Jitsi Meet.
 
-Для **telemost** и **wbstream** - создай руму через сайт ([телемост](https://telemost.yandex.ru/), [wbstream](https://stream.wb.ru)) и вставь её ID.
+Для **telemost** и **wbstream** - создай руму через сайт ([telemost](https://telemost.yandex.ru/), [wbstream](https://stream.wb.ru)) и вставь её ID.
 
 ### DNS
 

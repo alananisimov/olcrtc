@@ -1,3 +1,14 @@
+<div align="center">
+
+<img src="https://github.com/openlibrecommunity/material/blob/master/olcrtc.png" width="250" height="250">
+
+![License](https://img.shields.io/badge/license-WTFPL-0D1117?style=flat-square&logo=open-source-initiative&logoColor=green&labelColor=0D1117)
+![Golang](https://img.shields.io/badge/-Golang-0D1117?style=flat-square&logo=go&logoColor=00A7D0)
+
+</div>
+
+
+
 # olcRTC - общее описание
 
 `olcRTC` (OpenLibreCommunity RTC) - зашифрованный TCP-over-WebRTC туннель. Он маскирует трафик под обычное участие в WebRTC/SFU-сервисе: Jitsi Meet, Yandex Telemost или WbStream.
@@ -174,8 +185,6 @@ data: data
 | `script` | интерактивные launchers и Docker entrypoint |
 | `docs` | документация и примеры YAML |
 
-Подробная карта для разработки: [project-map.md](project-map.md).
-
 ## Сборка
 
 ```bash
@@ -244,7 +253,7 @@ mage e2e
 Real-provider E2E включаются через переменные:
 
 ```bash
-E2E_CARRIERS=wbstream E2E_TRANSPORTS=vp8channel mage e2e
+E2E_CARRIERS=wbstream E2E_TRANSPORTS= vp8channel mage e2e
 ```
 
 ## Частые проблемы
