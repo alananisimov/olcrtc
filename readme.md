@@ -42,38 +42,6 @@ Community ui client: [alananisimov/olcbox](https://github.com/alananisimov/olcbo
 [Client subscription format](docs/sub.md)
 
 
-## Build
-
-```bash
-# install mage first
-go install github.com/magefile/mage@latest
-
-# build cli + ui
-mage build
-
-# build cli only
-mage buildCLI
-
-# build cli with b codec, clones b repo, builds libb.so, compiles with -tags b
-mage buildCLIB
-
-# cross-compile for linux / windows / darwin
-mage cross
-
-# android aar via gomobile
-mage mobile
-
-# container image
-mage podman
-mage docker
-
-# lint / test / clean
-mage lint
-mage test
-mage clean
-
-```
-
 <div align="center">
 
 ---
